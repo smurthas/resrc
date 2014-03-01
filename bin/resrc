@@ -1,0 +1,139 @@
+#!/bin/bash
+FILES_BASE=$HOME/.resrc
+cmd=$1
+
+
+function set_up () {
+  mkdir -p $FILES_BASE
+}
+
+function add_user () {
+  set_up
+  username=$1
+  user_files=$FILES_BASE/$username
+  if [ -d $user_files ]
+  then
+    echo "User already exists."
+    return 1
+  fi
+  no_dot=$(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/$username/.files)
+  [ "$no_dot" == "200" ] && git clone https://github.com/$username/.files.git $user_files
+
+  dot=$(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/$username/.dotfiles)
+  [ "$dot" == "200" ] && git clone https://github.com/$username/.dotfiles.git $user_files
+}
+
+function rm_user () {
+  username=$1
+  user_files=$FILES_BASE/$username
+  if [ -L $user_files ]; then
+    rm $user_files
+  else
+    mv $user_files $FILES_BASE/.bkp/$username
+  fi
+
+}
+
+function list_users () {
+  ls $FILES_BASE
+}
+
+function link_user () {
+  set_up
+  username=$1
+  pushd $2
+  dir=`pwd`
+  popd
+  user_files=$FILES_BASE/$username
+  if [ -d $user_files ]
+  then
+    echo "User already exists."
+    return 1
+  fi
+  ln -s $dir $user_files
+}
+
+function clean_home () {
+  # cleanup old links
+  HOME_FILES=$HOME/.[a-z]*
+  for f in $HOME_FILES
+  do
+    if [ -L $f ]; then
+      linked_file=$(readlink $f)
+      echo $f  $linked_file  $FILES_BASE
+      [[ $linked_file == $FILES_BASE* ]] && rm $f
+    fi
+  done
+}
+
+function become_user () {
+  username=$1
+  backup_dir=$FILES_BASE/.bkp/$username
+  mkdir -p $backup_dir
+
+  clean_home
+
+  # link in all files
+  FILES=$FILES_BASE/$username/.[a-z]*
+  for f in $FILES
+  do
+    filename=$(basename $f)
+    homefile=$HOME/$filename
+    backup_file=$backup_dir/$filename
+    [ -f $backup_file -o -d $backup_file ] && rm -r $backup_file
+    [ -f $homefile -o -d $homefile ] && mv $homefile $backup_file
+    [ "$filename" != ".git" ] && ln -s $f $homefile
+  done
+}
+
+function become_user_soft () {
+  # NOT USED RIGHT NOW. Changing $HOME messes with too many things (espcially ~)
+  username=$1
+  echo '' > $RESRC_HOME/.profile
+  echo 'export RESRC_HOME=$HOME' >> $RESRC_HOME/.profile
+  echo "export HOME=$FILES_BASE/$username" >> $RESRC_HOME/.profile
+  echo 'source $HOME/.profile' >> $RESRC_HOME/.profile
+  source $RESRC_HOME/.profile
+}
+
+
+function usage() {
+  echo ""
+  echo "  Usage: resrc [command] [options]"
+  echo ""
+  echo "  Commands:"
+  echo ""
+  echo "    add <username>        : add a user from github."
+  echo "    rm <username>         : remove a user locally."
+  echo "    link <username> <dir> : link in a local set of dot files."
+  echo "    list                  : list all local users."
+  echo "    clean                 : clean all symlinks out of home dir."
+  echo "    become <username>     : switch to a user. will install if not present."
+  echo ""
+}
+
+case "$cmd" in
+  add)
+    add_user $2
+    ;;
+  rm)
+    rm_user $2
+    ;;
+  list)
+    list_users
+    ;;
+  link)
+    link_user $2 $3
+    ;;
+  become)
+    become_user $2
+    ;;
+  clean)
+    clean_home
+    ;;
+  *)
+    echo "Invalid command."
+    usage
+    exit 1
+  ;;
+esac
