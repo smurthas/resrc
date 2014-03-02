@@ -1,5 +1,6 @@
 #!/bin/bash
 FILES_BASE=$HOME/.resrc
+BACKUP_DIR=$FILES_BASE/.bkp
 CURRENT_USER_FILE=$FILES_BASE/.current_user
 cmd=$1
 
@@ -103,6 +104,26 @@ function clean_home () {
   done
 }
 
+function unbecome_user () {
+  clean_home
+
+  mkdir -p $BACKUP_DIR
+
+  PREV_FILES=$BACKUP_DIR/.[a-z]*
+  for f in $PREV_FILES
+  do
+    filename=$(basename $f)
+    homefile=$HOME/$filename
+    backup_file=$BACKUP_DIR/$filename
+
+    if [ -f $homefile -o -d $homefile ]; then
+      echo "$homefile already exists. Moving it to $homefile.bkp"
+      mv $homefile $homefile.bkp
+    fi
+    cp $backup_file $homefile
+  done
+}
+
 # set local .files to point to the .files for the specified username. If the
 # user is not available locally, they will be cloned from github.
 # $1  : username
@@ -122,11 +143,10 @@ function become_user () {
     resrc add $username
   fi
 
-  backup_dir=$FILES_BASE/.bkp/$username
-  mkdir -p $backup_dir
+  mkdir -p $BACKUP_DIR
 
   # un-become the current user
-  clean_home
+  unbecome_user
 
   # link in all files
   FILES=$FILES_BASE/$username/.[a-z]*
@@ -134,7 +154,7 @@ function become_user () {
   do
     filename=$(basename $f)
     homefile=$HOME/$filename
-    backup_file=$backup_dir/$filename
+    backup_file=$BACKUP_DIR/$filename
     [ -f $backup_file -o -d $backup_file ] && rm -r $backup_file
     [ -f $homefile -o -d $homefile ] && mv $homefile $backup_file
     [ "$filename" != ".git" ] && ln -s $f $homefile
@@ -152,10 +172,14 @@ function become_user_soft () {
   source $RESRC_HOME/.profile
 }
 
+function get_current_user () {
+  cat $CURRENT_USER_FILE
+}
+
 # ssh in and become the current local user on the remote machine
 function ssh () {
   debug $@
-  RESRC_USER=`cat $CURRENT_USER_FILE`
+  RESRC_USER=`get_current_user`
   URL=https://raw.github.com/smurthas/resrc/master/bin/resrc
   INSTALL=/usr/local/bin/resrc
   if [[ $@ =~ ^(-i\ [~./a-zA-Z_0-9]+\ )?([a-zA-Z]+@)?[a-zA-Z0-9.-]+ ]]
@@ -163,14 +187,24 @@ function ssh () {
     debug "matched!"
     /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
       which resrc || \
-      sudo sh -c 'curl $URL > $INSTALL && chmod +x $INSTALL' && \
-      resrc list && \
+      sudo sh -c 'curl $URL > $INSTALL 2>/dev/null &&  chmod +x $INSTALL' && \
       resrc become $RESRC_USER"; \
       /usr/bin/ssh $@
   else
     debug "no match, just using SSH"
     /usr/bin/ssh $@
   fi
+}
+
+# echo the the current user's directory
+# $1  : username=`get_current_user`
+function user_dir () {
+  username=$1
+  if [[ -z "$username" ]]; then
+    username=`get_current_user`
+  fi
+
+  echo $FILES_BASE/$username
 }
 
 function usage() {
@@ -185,7 +219,9 @@ function usage() {
   echo "    list                  : list all local users."
   echo "    clean                 : clean all symlinks out of home dir."
   echo "    become <username>     : switch to a user. will install if not present."
+  echo "    unbecome              : switch back to backed up .files."
   echo "    ssh <ssh_options>     : ssh into a remote server and become the local user remotely."
+  echo "    dir [username]        : echo the direction of local user's .files (defaults to value of $CURRENT_USER_FILE)."
   echo ""
 }
 
@@ -205,12 +241,19 @@ case "$cmd" in
   become)
     become_user $2
     ;;
+  unbecome)
+    unbecome_user
+    ;;
   clean)
     clean_home
     ;;
   ssh)
     shift
     ssh $@
+    ;;
+  dir)
+    shift
+    user_dir $@
     ;;
   *)
     echo "Invalid command."
