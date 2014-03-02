@@ -1,13 +1,27 @@
 #!/bin/bash
 FILES_BASE=$HOME/.resrc
+CURRENT_USER_FILE=$FILES_BASE/.current_user
 cmd=$1
 
+function debug () {
+  echo $@
+}
 
+# ensure the base directory is available
 function set_up () {
   mkdir -p $FILES_BASE
 }
 
+# add a user from github.com
+# $1  : username
 function add_user () {
+  # validate arguments
+  if [[ -z "$1" ]]; then
+    echo "Invalid arguments"
+    usage
+    return 1
+  fi
+
   set_up
   username=$1
   user_files=$FILES_BASE/$username
@@ -23,7 +37,16 @@ function add_user () {
   [ "$dot" == "200" ] && git clone https://github.com/$username/.dotfiles.git $user_files
 }
 
+# remove a user locally
+# $1  : username
 function rm_user () {
+  # validate arguments
+  if [[ -z "$1" ]]; then
+    echo "Invalid arguments"
+    usage
+    return 1
+  fi
+
   username=$1
   user_files=$FILES_BASE/$username
   if [ -L $user_files ]; then
@@ -34,12 +57,26 @@ function rm_user () {
 
 }
 
+# list out locally available users
 function list_users () {
   ls $FILES_BASE
 }
 
+# symlink in a user repo that is already on the loca filesystem.
+# useful for working on your dot files locally and testing things out before
+# pushing to github.
+# $1  : username
+# $2  : /path/to/local/repo
 function link_user () {
+  # validate arguments
+  if [[ -z "$1" || -z "$2" || ! -d "$2" ]]; then
+    echo "Invalid arguments"
+    usage
+    return 1
+  fi
+
   set_up
+
   username=$1
   pushd $2
   dir=`pwd`
@@ -60,17 +97,35 @@ function clean_home () {
   do
     if [ -L $f ]; then
       linked_file=$(readlink $f)
-      echo $f  $linked_file  $FILES_BASE
+      debug $f  $linked_file  $FILES_BASE
       [[ $linked_file == $FILES_BASE* ]] && rm $f
     fi
   done
 }
 
+# set local .files to point to the .files for the specified username. If the
+# user is not available locally, they will be cloned from github.
+# $1  : username
 function become_user () {
+  # validate arguments
+  if [[ -z "$1" ]]; then
+    echo "Invalid arguments"
+    usage
+    return 1
+  fi
+
   username=$1
+
+  # if that user isn't available locally, add them
+  if [[ ! -d $FILES_BASE/$username ]]; then
+    echo "user $username not available locally, adding..."
+    resrc add $username
+  fi
+
   backup_dir=$FILES_BASE/.bkp/$username
   mkdir -p $backup_dir
 
+  # un-become the current user
   clean_home
 
   # link in all files
@@ -84,6 +139,7 @@ function become_user () {
     [ -f $homefile -o -d $homefile ] && mv $homefile $backup_file
     [ "$filename" != ".git" ] && ln -s $f $homefile
   done
+  echo $username > $CURRENT_USER_FILE
 }
 
 function become_user_soft () {
@@ -96,6 +152,26 @@ function become_user_soft () {
   source $RESRC_HOME/.profile
 }
 
+# ssh in and become the current local user on the remote machine
+function ssh () {
+  debug $@
+  RESRC_USER=`cat $CURRENT_USER_FILE`
+  URL=https://raw.github.com/smurthas/resrc/master/bin/resrc
+  INSTALL=/usr/local/bin/resrc
+  if [[ $@ =~ ^(-i\ [~./a-zA-Z_0-9]+\ )?([a-zA-Z]+@)?[a-zA-Z0-9.-]+ ]]
+  then
+    debug "matched!"
+    /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
+      which resrc || \
+      sudo sh -c 'curl $URL > $INSTALL && chmod +x $INSTALL' && \
+      resrc list && \
+      resrc become $RESRC_USER"; \
+      /usr/bin/ssh $@
+  else
+    debug "no match, just using SSH"
+    /usr/bin/ssh $@
+  fi
+}
 
 function usage() {
   echo ""
@@ -109,6 +185,7 @@ function usage() {
   echo "    list                  : list all local users."
   echo "    clean                 : clean all symlinks out of home dir."
   echo "    become <username>     : switch to a user. will install if not present."
+  echo "    ssh <ssh_options>     : ssh into a remote server and become the local user remotely."
   echo ""
 }
 
@@ -130,6 +207,10 @@ case "$cmd" in
     ;;
   clean)
     clean_home
+    ;;
+  ssh)
+    shift
+    ssh $@
     ;;
   *)
     echo "Invalid command."
