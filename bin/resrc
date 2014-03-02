@@ -107,6 +107,22 @@ function clean_home () {
 function unbecome_user () {
   clean_home
 
+  # if there isn't a backup, then just return
+  if [[ ! -d $BACKUP_DIR ]]; then
+    debug "no $BACKUP_DIR, returning"
+    return
+  fi
+
+  # if the backup dir is empty, then just return
+  files=$(shopt -s nullglob; shopt -s dotglob; echo $BACKUP_DIR/*)
+  debug $files
+  if [ ! ${#files} -gt 0 ]; then
+    debug "$BACKUP_DIR is empty, returning"
+    return
+  fi
+
+
+  debug "was .bkp dir, continuing"
   mkdir -p $BACKUP_DIR
 
   PREV_FILES=$BACKUP_DIR/.[a-z]*
@@ -115,6 +131,9 @@ function unbecome_user () {
     filename=$(basename $f)
     homefile=$HOME/$filename
     backup_file=$BACKUP_DIR/$filename
+    debug filename: $filename
+    debug homefile: $homefile
+    debug backup_file: $backup_file
 
     if [ -f $homefile -o -d $homefile ]; then
       echo "$homefile already exists. Moving it to $homefile.bkp"
@@ -143,10 +162,10 @@ function become_user () {
     resrc add $username
   fi
 
-  mkdir -p $BACKUP_DIR
-
   # un-become the current user
   unbecome_user
+
+  mkdir -p $BACKUP_DIR
 
   # link in all files
   FILES=$FILES_BASE/$username/.[a-z]*
