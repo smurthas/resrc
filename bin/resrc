@@ -5,7 +5,7 @@ CURRENT_USER_FILE=$FILES_BASE/.current_user
 cmd=$1
 
 function debug () {
-  echo $@
+  if [ -n "$RESRC_DEBUG" ]; then echo $@; fi
 }
 
 # ensure the base directory is available
