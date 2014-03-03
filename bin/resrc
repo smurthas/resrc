@@ -275,7 +275,7 @@ case "$cmd" in
     user_dir $@
     ;;
   *)
-    echo "Invalid command."
+    echo "Invalid command: $@"
     usage
     exit 1
   ;;
