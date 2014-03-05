@@ -158,13 +158,14 @@ function become_user () {
 
   # if that user isn't available locally, add them
   if [[ ! -d $FILES_BASE/$username ]]; then
-    echo "user $username not available locally, adding..."
+    echo "User \"$username\" not available locally, adding..."
     resrc add $username
   fi
 
   # un-become the current user
   unbecome_user
 
+  echo "Becoming \"$username\"..."
   mkdir -p $BACKUP_DIR
 
   # link in all files
@@ -199,6 +200,7 @@ function get_current_user () {
 function ssh () {
   debug $@
   RESRC_USER=`get_current_user`
+  debug user: $RESRC_USER
   URL=https://raw.github.com/smurthas/resrc/master/bin/resrc
   INSTALL=/usr/local/bin/resrc
   if [[ $@ =~ ^(-i\ [~./a-zA-Z_0-9]+\ )?([a-zA-Z]+@)?[a-zA-Z0-9.-]+ ]]
@@ -206,7 +208,9 @@ function ssh () {
     debug "matched!"
     /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
       which resrc || \
-      sudo sh -c 'curl $URL > $INSTALL 2>/dev/null &&  chmod +x $INSTALL' && \
+      { echo -n \"resrc is not installed on this machine. Do you want to install? [Y/n] \" &&
+        read ans && [ \"\$ans\" == \"Y\" ] &&
+        sudo sh -c 'echo Installing resrc... && curl $URL > $INSTALL 2>/dev/null && chmod +x $INSTALL'; } && \
       resrc become $RESRC_USER"; \
       /usr/bin/ssh $@
   else
