@@ -50,16 +50,19 @@ function rm_user () {
 
   username=$1
   user_files=$FILES_BASE/$username
+  backup_dir=$FILES_BASE/.bkp
   if [ -L $user_files ]; then
     rm $user_files
   else
-    mv $user_files $FILES_BASE/.bkp/$username
+    mkdir -p $BACKUP_DIR
+    mv $user_files $BACKUP_DIR/$username
   fi
 
 }
 
 # list out locally available users
 function list_users () {
+  mkdir -p $FILES_BASE
   ls $FILES_BASE
 }
 
@@ -203,15 +206,43 @@ function ssh () {
   debug user: $RESRC_USER
   URL=https://raw.github.com/smurthas/resrc/master/bin/resrc
   INSTALL=/usr/local/bin/resrc
+
+  # only do this fancy stuff for very basic ssh commands. We only support
+  # "user@host", just "host", or "-i /path/to/key" (followed by either of the
+  # first two commands).
+  # Otherwise, just drop back to regular ssh
   if [[ $@ =~ ^(-i\ [~./a-zA-Z_0-9]+\ )?([a-zA-Z]+@)?[a-zA-Z0-9.-]+ ]]
   then
     debug "matched!"
+    # Before ssh-ing to a shell, try to install resrc and become the user.
+    # First we check for resrc, then curl it from github if it not there.
+    # Next we check if the user's .files are already install and if not check
+    # for git before git cloning them. If git isn't install and the user doesn't
+    # want to install it, we'll fallback to scp-ing the files up to the server.
+    # Finally, if we have confirmed that resrc is installed and the user is
+    # available, we `resrc become` the user, exit out and then ssh back in with
+    # a shell
     /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
-      which resrc || \
+      which resrc > /dev/null || \
       { echo -n \"resrc is not installed on this machine. Do you want to install? [Y/n] \" &&
         read ans && [ \"\$ans\" == \"Y\" ] &&
         sudo sh -c 'echo Installing resrc... && curl $URL > $INSTALL 2>/dev/null && chmod +x $INSTALL'; } && \
-      resrc become $RESRC_USER"; \
+      resrc list | grep $RESRC_USER > /dev/null || \
+      which git || \
+      { echo -n \"git is not installed on this machine. Do you want to install? [Y/n] \" &&
+        read ans && [ \"\$ans\" == \"Y\" ] &&
+        sudo sh -c 'echo Installing git... && apt-get install -y git'; } || exit 125 && \
+      resrc become $RESRC_USER";
+      code=`echo $?`
+      # if the first ssh attempt exits with 125, that's our code to indicate
+      # that git wasn't available and the user chose not to install it. Fall
+      # back to scp from the local machine
+      if [ "$code" == "125" ]; then
+        debug "scp-ing"
+        scp -r $FILES_BASE/$RESRC_USER $@:.resrc/$RESRC_USER
+        /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
+          resrc become $RESRC_USER";
+      fi
       /usr/bin/ssh $@
   else
     debug "no match, just using SSH"
@@ -252,10 +283,10 @@ case "$cmd" in
   add)
     add_user $2
     ;;
-  rm)
+  remove|rm)
     rm_user $2
     ;;
-  list)
+  list|ls)
     list_users
     ;;
   link)
