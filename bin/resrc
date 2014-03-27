@@ -226,12 +226,12 @@ function ssh () {
     /usr/bin/ssh $@ "source /etc/profile && { [ -f \$HOME/.profile ] && source \$HOME/.profile || true; } && \
       which resrc > /dev/null || \
       { echo -n \"resrc is not installed on this machine. Do you want to install? [Y/n] \" &&
-        read ans && [ \"\$ans\" == \"Y\" ] &&
+        read ans && [ \"\$ans\" == \"Y\" -o \"\$ans\" == \"y\" ] &&
         sudo sh -c 'echo Installing resrc... && curl $URL > $INSTALL 2>/dev/null && chmod +x $INSTALL'; } && \
       resrc list | grep $RESRC_USER > /dev/null || \
       which git || \
       { echo -n \"git is not installed on this machine. Do you want to install? [Y/n] \" &&
-        read ans && [ \"\$ans\" == \"Y\" ] &&
+        read ans && [ \"\$ans\" == \"Y\" -o \"\$ans\" == \"y\" ] &&
         sudo sh -c 'echo Installing git... && apt-get install -y git'; } || exit 125 && \
       resrc become $RESRC_USER";
       code=`echo $?`
