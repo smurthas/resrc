@@ -55,7 +55,8 @@ function rm_user () {
     rm $user_files
   else
     mkdir -p $BACKUP_DIR
-    mv $user_files $BACKUP_DIR/$username
+    user_bkp_dir=$BACKUP_DIR/$username_`date +%s`
+    mv $user_files $user_bkp_dir
   fi
 
 }
@@ -222,7 +223,7 @@ function ssh () {
     # Finally, if we have confirmed that resrc is installed and the user is
     # available, we `resrc become` the user, exit out and then ssh back in with
     # a shell
-    /usr/bin/ssh $@ "source /etc/profile && source \$HOME/.profile && \
+    /usr/bin/ssh $@ "source /etc/profile && { [ -f \$HOME/.profile ] && source \$HOME/.profile || true; } && \
       which resrc > /dev/null || \
       { echo -n \"resrc is not installed on this machine. Do you want to install? [Y/n] \" &&
         read ans && [ \"\$ans\" == \"Y\" ] &&
