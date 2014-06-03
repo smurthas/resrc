@@ -1,13 +1,12 @@
 # resrc (/ˈrēˌsôrs/)
 
-`resrc` is a tool for managing your dot files. It is brand new and will **likely
-break your local environment** so make sure you have all of your dot files
-backed up.
+`resrc` is a tool for managing your dot files. It's still in development, so make sure you have all of your dot files
+backed up before you install it.
 
 
 ## Usage
 
-After installing `resrc` on a new server (see below), you can easily set up your
+After installing `resrc` on a new machine (see below), you can easily set up your
 user to act just like your local environment. You must have your dotfiles in a
 public repo on Github called `.dotfiles` or `.files`. Then, you can add yourself
 to the server with:
@@ -31,7 +30,7 @@ right away. In this case, use the `link` command:
 resrc link smurthas /path/to/local/repo
 ```
 
-You can easily Try out a friend's environment!
+You can easily try out a friend's environment!
 
 ```bash
 resrc add kristjan
