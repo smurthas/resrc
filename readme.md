@@ -52,7 +52,7 @@ To install, simply curl the script somewhere on your path and make it
 executable:
 
 ```bash
-curl https://raw.github.com/smurthas/resrc/master/bin/resrc \
+curl https://raw.githubusercontent.com/smurthas/resrc/master/bin/resrc \
 > /usr/local/bin/resrc
-chmod +x /usr/loca/bin/resrc
+chmod +x /usr/local/bin/resrc
 ```
