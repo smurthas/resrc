@@ -205,7 +205,7 @@ function ssh () {
   debug $@
   RESRC_USER=`get_current_user`
   debug user: $RESRC_USER
-  URL=https://raw.github.com/smurthas/resrc/master/bin/resrc
+  URL=https://raw.githubusercontent.com/smurthas/resrc/master/bin/resrc
   INSTALL=/usr/local/bin/resrc
 
   # only do this fancy stuff for very basic ssh commands. We only support
@@ -227,7 +227,7 @@ function ssh () {
       which resrc > /dev/null || \
       { echo -n \"resrc is not installed on this machine. Do you want to install? [Y/n] \" &&
         read ans && [ \"\$ans\" == \"Y\" -o \"\$ans\" == \"y\" ] &&
-        sudo sh -c 'echo Installing resrc... && curl $URL > $INSTALL 2>/dev/null && chmod +x $INSTALL'; } && \
+        sudo sh -c 'echo Installing resrc... && curl $URL > $INSTALL && chmod +x $INSTALL'; } && \
       resrc list | grep $RESRC_USER > /dev/null || \
       which git || \
       { echo -n \"git is not installed on this machine. Do you want to install? [Y/n] \" &&

@@ -45,6 +45,20 @@ vim test.txt
 resrc become smurthas  # yet again, your username, not mine
 ```
 
+### Take it with you!
+
+You can automatically take your dot files with you when you ssh:
+
+```bash
+resrc ssh <any normal ssh args>
+```
+
+This will do some set up work first by sshing into the remote box, installing
+`resrc` on that machine, and becoming you.
+
+It's even safe to `alias ssh="resrc ssh"` as resrc will only do fancy set up
+work for ssh commands of the form `ssh [user@]host [-i /path/to/key]`. If the
+command is not of that form, it will just call ssh directly.
 
 ## Installation
 
@@ -52,7 +66,6 @@ To install, simply curl the script somewhere on your path and make it
 executable:
 
 ```bash
-curl https://raw.githubusercontent.com/smurthas/resrc/master/bin/resrc \
-> /usr/local/bin/resrc
+curl https://raw.githubusercontent.com/smurthas/resrc/master/bin/resrc > /usr/local/bin/resrc
 chmod +x /usr/local/bin/resrc
 ```
